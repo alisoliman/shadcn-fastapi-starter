@@ -51,7 +51,7 @@ interface TaskCreate {
   status: "pending" | "completed"
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+import { getApiUrl } from "@/lib/config"
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -69,7 +69,8 @@ export default function TasksPage() {
   const fetchTasks = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/`)
+      const apiUrl = await getApiUrl()
+      const response = await fetch(`${apiUrl}/api/tasks/`)
       if (response.ok) {
         const data = await response.json()
         setTasks(data.tasks || [])
@@ -87,7 +88,8 @@ export default function TasksPage() {
   // Create new task
   const createTask = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/`, {
+      const apiUrl = await getApiUrl()
+      const response = await fetch(`${apiUrl}/api/tasks/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,7 +116,8 @@ export default function TasksPage() {
     if (!editingTask) return
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${editingTask.id}`, {
+      const apiUrl = await getApiUrl()
+      const response = await fetch(`${apiUrl}/api/tasks/${editingTask.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -140,7 +143,8 @@ export default function TasksPage() {
   // Delete task
   const deleteTask = async (taskId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}`, {
+      const apiUrl = await getApiUrl()
+      const response = await fetch(`${apiUrl}/api/tasks/${taskId}`, {
         method: "DELETE",
       })
       

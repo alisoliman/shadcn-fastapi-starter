@@ -81,7 +81,12 @@ module backendContainerApp 'modules/containerapp.bicep' = {
     managedIdentityClientId: managedIdentity.properties.clientId
     tags: commonTags
     resourcePrefix: uniqueSuffix
-    environmentVariables: []
+    environmentVariables: [
+      {
+        name: 'ENVIRONMENT'
+        value: 'production'
+      }
+    ]
   }
   dependsOn: [
     containerAppsStack
@@ -105,7 +110,7 @@ module frontendContainerApp 'modules/containerapp.bicep' = {
     resourcePrefix: uniqueSuffix
     environmentVariables: [
       {
-        name: 'NEXT_PUBLIC_API_URL'
+        name: 'API_URL'
         value: 'https://${backendContainerApp.outputs.fqdn}'
       }
     ]
