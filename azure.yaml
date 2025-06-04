@@ -11,3 +11,11 @@ services:
     project: ./backend
     language: python
     host: containerapp
+
+hooks:
+  postprovision:
+    shell: sh
+    run: |
+      echo "Setting container registry endpoint..."
+      azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT $(azd env get-value containerRegistryLoginServer)
+    continueOnError: false

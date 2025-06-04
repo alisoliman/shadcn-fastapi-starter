@@ -22,61 +22,94 @@ param managedIdentityResourceId string
 @description('The managed identity client ID for registry access')
 param managedIdentityClientId string
 
-@description('Environment variables for the container')
-param envVars array = []
+@description('Tags for all resources')
+param tags object = {}
 
+@description('The resource prefix for naming')
+param resourcePrefix string
+
+// Create managed identity for the container app
+resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: '${resourcePrefix}-identity'
+  location: location
+  tags: tags
+}
+
+// Create Container App with workload profile specification and required azd tags
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: name
   location: location
-  tags: {
+  tags: union(tags, {
     'azd-service-name': 'api'
-  }
+  })
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${managedIdentityResourceId}': {}
+      '${managedIdentity.id}': {}
     }
   }
   properties: {
     environmentId: environmentId
+    workloadProfileName: 'Consumption'
     configuration: {
+      activeRevisionsMode: 'Single'
       ingress: {
         external: true
         targetPort: containerPort
         allowInsecure: false
-        corsPolicy: {
-          allowedOrigins: ['*']
-          allowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-          allowedHeaders: ['*']
-          allowCredentials: false
-        }
+        transport: 'auto'
+        traffic: [
+          {
+            weight: 100
+            latestRevision: true
+          }
+        ]
       }
       registries: [
         {
           server: registryServer
-          identity: managedIdentityClientId
+          identity: managedIdentity.id
         }
       ]
     }
     template: {
       containers: [
         {
-          name: 'fastapi-app'
-          image: !empty(containerImage) ? containerImage : 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
-          env: envVars
+          name: 'main'
+          image: containerImage
           resources: {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
+          env: [
+            {
+              name: 'PORT'
+              value: string(containerPort)
+            }
+          ]
         }
       ]
       scale: {
         minReplicas: 1
-        maxReplicas: 3
+        maxReplicas: 10
+        rules: [
+          {
+            name: 'http-rule'
+            http: {
+              metadata: {
+                concurrentRequests: '50'
+              }
+            }
+          }
+        ]
       }
     }
   }
 }
 
+// Outputs
+output fqdn string = containerApp.properties.configuration.ingress.fqdn
 output name string = containerApp.name
-output endpoint string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
+output managedIdentityPrincipalId string = managedIdentity.properties.principalId
+output managedIdentityResourceId string = managedIdentity.id
+output managedIdentityClientId string = managedIdentity.properties.clientId

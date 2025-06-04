@@ -9,78 +9,120 @@ param location string = resourceGroup().location
 @description('The container image to deploy')
 param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
-// Generate a unique resource token
-var resourceToken = uniqueString(subscription().id, resourceGroup().id, environmentName)
-var tags = { 'azd-env-name': environmentName }
+@description('The project name for resource naming')
+param projectName string = 'shadcn-fastapi'
 
-// Container apps stack (including container registry and environment)
+// Location abbreviations for consistent naming
+var locationAbbr = {
+  eastus: 'eus'
+  westus: 'wus'
+  eastus2: 'eus2'
+  westus2: 'wus2'
+  centralus: 'cus'
+  northcentralus: 'ncus'
+  southcentralus: 'scus'
+  westcentralus: 'wcus'
+  canadacentral: 'cac'
+  canadaeast: 'cae'
+  brazilsouth: 'brs'
+  northeurope: 'neu'
+  westeurope: 'weu'
+  uksouth: 'uks'
+  ukwest: 'ukw'
+  francecentral: 'frc'
+  francesouth: 'frs'
+  germanywestcentral: 'gwc'
+  norwayeast: 'noe'
+  switzerlandnorth: 'szn'
+  swedencentral: 'sec'
+  japaneast: 'jpe'
+  japanwest: 'jpw'
+  australiaeast: 'aue'
+  australiasoutheast: 'aus'
+  southeastasia: 'sea'
+  eastasia: 'eas'
+  southafricanorth: 'san'
+  centralindia: 'cin'
+  southindia: 'sin'
+  westindia: 'win'
+}
+
+// Generate unique resource prefix
+var locationCode = locationAbbr[location] ?? 'unk'
+var resourcePrefix = '${projectName}-${environmentName}-${locationCode}'
+
+// Common tags for all resources
+var commonTags = {
+  Environment: environmentName
+  Project: projectName
+  Location: location
+  ManagedBy: 'Bicep'
+}
+
+// Generate unique names for resources - simplified container registry naming
+var containerAppsEnvironmentName = '${resourcePrefix}-env'
+var containerRegistryName = 'cr${replace(environmentName, '-', '')}${uniqueString(resourceGroup().id)}'
+var managedIdentityName = '${resourcePrefix}-identity'
+var containerAppName = '${resourcePrefix}-app'
+
+// Create managed identity for container registry access
+resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: managedIdentityName
+  location: location
+  tags: commonTags
+}
+
+// Deploy container apps stack (environment + registry)
 module containerAppsStack 'modules/container-apps-stack.bicep' = {
   name: 'container-apps-stack'
   params: {
-    containerAppsEnvironmentName: 'env-${resourceToken}'
-    containerRegistryName: 'acr${resourceToken}'
+    containerAppsEnvironmentName: containerAppsEnvironmentName
+    containerRegistryName: containerRegistryName
     location: location
-    tags: tags
+    tags: commonTags
+    projectName: projectName
+    environmentName: environmentName
   }
 }
 
-// Create user-assigned managed identity
-resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: 'id-${resourceToken}'
-  location: location
-  tags: tags
-}
-
-// Assign AcrPull role to the managed identity
+// Assign AcrPull role to managed identity
 module roleAssignment 'modules/role-assignment.bicep' = {
-  name: 'registry-role-assignment'
+  name: 'role-assignment'
   params: {
-    registryId: containerAppsStack.outputs.registryId
-    managedIdentityPrincipalId: identity.properties.principalId
+    registryId: containerAppsStack.outputs.containerRegistryId
+    managedIdentityPrincipalId: managedIdentity.properties.principalId
+    resourcePrefix: resourcePrefix
   }
   dependsOn: [
     containerAppsStack
-    identity
+    managedIdentity
   ]
 }
 
-// API Container App
-module api 'modules/containerapp.bicep' = {
-  name: 'api'
+// Deploy container app
+module containerApp 'modules/containerapp.bicep' = {
+  name: 'container-app'
   params: {
-    name: 'api-${resourceToken}'
+    name: containerAppName
     location: location
-    environmentId: containerAppsStack.outputs.environmentId
+    environmentId: containerAppsStack.outputs.containerAppsEnvironmentId
     containerImage: containerImage
-    containerPort: 80
-    registryServer: containerAppsStack.outputs.registryLoginServer
-    managedIdentityResourceId: identity.id
-    managedIdentityClientId: identity.properties.clientId
-    envVars: []
+    containerPort: 8000
+    registryServer: containerAppsStack.outputs.containerRegistryLoginServer
+    managedIdentityResourceId: managedIdentity.id
+    managedIdentityClientId: managedIdentity.properties.clientId
+    tags: commonTags
+    resourcePrefix: resourcePrefix
   }
   dependsOn: [
+    containerAppsStack
     roleAssignment
   ]
 }
 
-// Output the container app endpoint
-output containerAppEndpoint string = api.outputs.endpoint
+// Outputs
+output containerAppFqdn string = containerApp.outputs.fqdn
+output containerRegistryLoginServer string = containerAppsStack.outputs.containerRegistryLoginServer
+output managedIdentityClientId string = managedIdentity.properties.clientId
+output resourceGroupName string = resourceGroup().name
 
-output AZURE_CONTAINER_REGISTRY_NAME string = containerAppsStack.outputs.registryName
-output AZURE_CONTAINER_REGISTRY_LOGIN_SERVER string = containerAppsStack.outputs.registryLoginServer
-output AZURE_CONTAINER_REGISTRY_ENDPOINT string = 'https://${containerAppsStack.outputs.registryLoginServer}'
-output AZURE_CONTAINER_ENVIRONMENT_NAME string = containerAppsStack.outputs.environmentName
-output AZURE_CONTAINER_APP_NAME string = api.outputs.name
-output AZURE_CONTAINER_APP_ENDPOINT string = api.outputs.endpoint
-output AZURE_MANAGED_IDENTITY_ID string = identity.id
-output RESOURCE_GROUP_ID string = resourceGroup().id
-
-// Apply tags to the resource group
-resource rgTags 'Microsoft.Resources/tags@2024-11-01' = {
-  name: 'default'
-  properties: {
-    tags: {
-      'azd-env-name': environmentName
-    }
-  }
-}
