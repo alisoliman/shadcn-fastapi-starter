@@ -6,50 +6,17 @@ param environmentName string
 @description('The location for all resources')
 param location string = resourceGroup().location
 
-@description('The container image to deploy')
-param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+@description('The backend container image to deploy')
+param backendContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+
+@description('The frontend container image to deploy')
+param frontendContainerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 @description('The project name for resource naming')
 param projectName string = 'shadcn-fastapi'
 
-// Location abbreviations for consistent naming
-var locationAbbr = {
-  eastus: 'eus'
-  westus: 'wus'
-  eastus2: 'eus2'
-  westus2: 'wus2'
-  centralus: 'cus'
-  northcentralus: 'ncus'
-  southcentralus: 'scus'
-  westcentralus: 'wcus'
-  canadacentral: 'cac'
-  canadaeast: 'cae'
-  brazilsouth: 'brs'
-  northeurope: 'neu'
-  westeurope: 'weu'
-  uksouth: 'uks'
-  ukwest: 'ukw'
-  francecentral: 'frc'
-  francesouth: 'frs'
-  germanywestcentral: 'gwc'
-  norwayeast: 'noe'
-  switzerlandnorth: 'szn'
-  swedencentral: 'sec'
-  japaneast: 'jpe'
-  japanwest: 'jpw'
-  australiaeast: 'aue'
-  australiasoutheast: 'aus'
-  southeastasia: 'sea'
-  eastasia: 'eas'
-  southafricanorth: 'san'
-  centralindia: 'cin'
-  southindia: 'sin'
-  westindia: 'win'
-}
-
-// Generate unique resource prefix
-var locationCode = locationAbbr[location] ?? 'unk'
-var resourcePrefix = '${projectName}-${environmentName}-${locationCode}'
+// Generate a short unique suffix for resource naming
+var uniqueSuffix = take(uniqueString(resourceGroup().id), 6)
 
 // Common tags for all resources
 var commonTags = {
@@ -59,11 +26,12 @@ var commonTags = {
   ManagedBy: 'Bicep'
 }
 
-// Generate unique names for resources - simplified container registry naming
-var containerAppsEnvironmentName = '${resourcePrefix}-env'
-var containerRegistryName = 'cr${replace(environmentName, '-', '')}${uniqueString(resourceGroup().id)}'
-var managedIdentityName = '${resourcePrefix}-identity'
-var containerAppName = '${resourcePrefix}-app'
+// Simple, short resource names that stay within limits
+var containerAppsEnvironmentName = 'env-${uniqueSuffix}'
+var containerRegistryName = 'cr${uniqueSuffix}'
+var managedIdentityName = 'id-${uniqueSuffix}'
+var backendContainerAppName = 'backend-${uniqueSuffix}'
+var frontendContainerAppName = 'frontend-${uniqueSuffix}'
 
 // Create managed identity for container registry access
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
@@ -91,7 +59,7 @@ module roleAssignment 'modules/role-assignment.bicep' = {
   params: {
     registryId: containerAppsStack.outputs.containerRegistryId
     managedIdentityPrincipalId: managedIdentity.properties.principalId
-    resourcePrefix: resourcePrefix
+    resourcePrefix: uniqueSuffix
   }
   dependsOn: [
     containerAppsStack
@@ -99,20 +67,21 @@ module roleAssignment 'modules/role-assignment.bicep' = {
   ]
 }
 
-// Deploy container app
-module containerApp 'modules/containerapp.bicep' = {
-  name: 'container-app'
+// Deploy backend container app
+module backendContainerApp 'modules/containerapp.bicep' = {
+  name: 'backend-container-app'
   params: {
-    name: containerAppName
+    name: backendContainerAppName
     location: location
     environmentId: containerAppsStack.outputs.containerAppsEnvironmentId
-    containerImage: containerImage
+    containerImage: backendContainerImage
     containerPort: 8000
     registryServer: containerAppsStack.outputs.containerRegistryLoginServer
     managedIdentityResourceId: managedIdentity.id
     managedIdentityClientId: managedIdentity.properties.clientId
     tags: commonTags
-    resourcePrefix: resourcePrefix
+    resourcePrefix: uniqueSuffix
+    environmentVariables: []
   }
   dependsOn: [
     containerAppsStack
@@ -120,8 +89,37 @@ module containerApp 'modules/containerapp.bicep' = {
   ]
 }
 
+// Deploy frontend container app
+module frontendContainerApp 'modules/containerapp.bicep' = {
+  name: 'frontend-container-app'
+  params: {
+    name: frontendContainerAppName
+    location: location
+    environmentId: containerAppsStack.outputs.containerAppsEnvironmentId
+    containerImage: frontendContainerImage
+    containerPort: 3000
+    registryServer: containerAppsStack.outputs.containerRegistryLoginServer
+    managedIdentityResourceId: managedIdentity.id
+    managedIdentityClientId: managedIdentity.properties.clientId
+    tags: commonTags
+    resourcePrefix: uniqueSuffix
+    environmentVariables: [
+      {
+        name: 'NEXT_PUBLIC_API_URL'
+        value: 'https://${backendContainerApp.outputs.fqdn}'
+      }
+    ]
+  }
+  dependsOn: [
+    containerAppsStack
+    roleAssignment
+    backendContainerApp
+  ]
+}
+
 // Outputs
-output containerAppFqdn string = containerApp.outputs.fqdn
+output backendContainerAppFqdn string = backendContainerApp.outputs.fqdn
+output frontendContainerAppFqdn string = frontendContainerApp.outputs.fqdn
 output containerRegistryLoginServer string = containerAppsStack.outputs.containerRegistryLoginServer
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output resourceGroupName string = resourceGroup().name

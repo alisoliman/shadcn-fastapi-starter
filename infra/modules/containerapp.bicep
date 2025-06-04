@@ -28,24 +28,23 @@ param tags object = {}
 @description('The resource prefix for naming')
 param resourcePrefix string
 
-// Create managed identity for the container app
-resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: '${resourcePrefix}-identity'
-  location: location
-  tags: tags
-}
+@description('Environment variables for the container')
+param environmentVariables array = []
+
+// Determine service name based on container app name
+var serviceName = contains(name, 'backend') ? 'api' : 'web'
 
 // Create Container App with workload profile specification and required azd tags
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: name
   location: location
   tags: union(tags, {
-    'azd-service-name': 'api'
+    'azd-service-name': serviceName
   })
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
-      '${managedIdentity.id}': {}
+      '${managedIdentityResourceId}': {}
     }
   }
   properties: {
@@ -68,7 +67,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       registries: [
         {
           server: registryServer
-          identity: managedIdentity.id
+          identity: managedIdentityResourceId
         }
       ]
     }
@@ -81,12 +80,12 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             cpu: json('0.25')
             memory: '0.5Gi'
           }
-          env: [
+          env: concat([
             {
               name: 'PORT'
               value: string(containerPort)
             }
-          ]
+          ], environmentVariables)
         }
       ]
       scale: {
@@ -110,6 +109,3 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
 // Outputs
 output fqdn string = containerApp.properties.configuration.ingress.fqdn
 output name string = containerApp.name
-output managedIdentityPrincipalId string = managedIdentity.properties.principalId
-output managedIdentityResourceId string = managedIdentity.id
-output managedIdentityClientId string = managedIdentity.properties.clientId

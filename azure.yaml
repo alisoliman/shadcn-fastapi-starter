@@ -11,6 +11,10 @@ services:
     project: ./backend
     language: python
     host: containerapp
+  web:
+    project: ./frontend
+    language: js
+    host: containerapp
 
 hooks:
   postprovision:

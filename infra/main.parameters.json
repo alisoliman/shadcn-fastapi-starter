@@ -8,8 +8,11 @@
         "location": {
             "value": "${AZURE_LOCATION=eastus2}"
         },
-        "containerImage": {
+        "backendContainerImage": {
             "value": "${SERVICE_API_IMAGE_NAME}"
+        },
+        "frontendContainerImage": {
+            "value": "${SERVICE_WEB_IMAGE_NAME}"
         },
         "projectName": {
             "value": "shadcn-fastapi"
