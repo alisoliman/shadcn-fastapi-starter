@@ -9,4 +9,5 @@ def client() -> TestClient:
     """
     Create a test client for the FastAPI application.
     """
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client

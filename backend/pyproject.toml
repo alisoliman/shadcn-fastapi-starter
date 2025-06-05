@@ -8,3 +8,9 @@ dependencies = [
     "fastapi[standard]>=0.112.1",
     "pydantic-settings>=2.9.1",
 ]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "httpx>=0.24.0",
+]
