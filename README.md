@@ -60,7 +60,8 @@ NEXT_PUBLIC_AZURE_REDIRECT_URI=<frontend-redirect-uri>
 ```
 
 When deploying with `azd up`, a post-provision script creates an Entra ID
-application and automatically sets these values in the environment.
+application and automatically sets these values in the environment and updates
+the frontend container with them.
 
 ## Deployment
 

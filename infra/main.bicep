@@ -125,6 +125,8 @@ module frontendContainerApp 'modules/containerapp.bicep' = {
 // Outputs
 output backendContainerAppFqdn string = backendContainerApp.outputs.fqdn
 output frontendContainerAppFqdn string = frontendContainerApp.outputs.fqdn
+output backendContainerAppName string = backendContainerApp.outputs.name
+output frontendContainerAppName string = frontendContainerApp.outputs.name
 output containerRegistryLoginServer string = containerAppsStack.outputs.containerRegistryLoginServer
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output resourceGroupName string = resourceGroup().name

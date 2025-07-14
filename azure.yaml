@@ -29,4 +29,9 @@ hooks:
       azd env set NEXT_PUBLIC_AZURE_CLIENT_ID $APP_ID
       azd env set NEXT_PUBLIC_AZURE_TENANT_ID $(az account show --query tenantId -o tsv)
       azd env set NEXT_PUBLIC_AZURE_REDIRECT_URI "https://${FRONTEND_FQDN}"
+      echo "Updating frontend container app settings..."
+      az containerapp update \
+        --name $(azd env get-value frontendContainerAppName) \
+        --resource-group $(azd env get-value resourceGroupName) \
+        --set-env-vars NEXT_PUBLIC_AZURE_CLIENT_ID=$APP_ID NEXT_PUBLIC_AZURE_TENANT_ID=$(az account show --query tenantId -o tsv) NEXT_PUBLIC_AZURE_REDIRECT_URI="https://${FRONTEND_FQDN}"
     continueOnError: false

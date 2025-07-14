@@ -3,6 +3,24 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth-provider";
 
+function RuntimeConfig() {
+  const env = {
+    NEXT_PUBLIC_AZURE_CLIENT_ID:
+      process.env.NEXT_PUBLIC_AZURE_CLIENT_ID || "",
+    NEXT_PUBLIC_AZURE_TENANT_ID:
+      process.env.NEXT_PUBLIC_AZURE_TENANT_ID || "",
+    NEXT_PUBLIC_AZURE_REDIRECT_URI:
+      process.env.NEXT_PUBLIC_AZURE_REDIRECT_URI || "",
+  };
+  return (
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `window.__env = ${JSON.stringify(env)}`,
+      }}
+    />
+  );
+}
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -28,6 +46,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <RuntimeConfig />
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
