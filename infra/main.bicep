@@ -122,10 +122,26 @@ module frontendContainerApp 'modules/containerapp.bicep' = {
   ]
 }
 
+// Deploy Entra ID application for frontend authentication
+module aadApp 'modules/aad-app.bicep' = {
+  name: 'aad-app'
+  params: {
+    displayName: '${projectName}-${uniqueSuffix}'
+    redirectUris: [
+      'https://${frontendContainerApp.outputs.fqdn}',
+      'http://localhost:3000'
+    ]
+  }
+  dependsOn: [
+    frontendContainerApp
+  ]
+}
+
 // Outputs
 output backendContainerAppFqdn string = backendContainerApp.outputs.fqdn
 output frontendContainerAppFqdn string = frontendContainerApp.outputs.fqdn
 output containerRegistryLoginServer string = containerAppsStack.outputs.containerRegistryLoginServer
 output managedIdentityClientId string = managedIdentity.properties.clientId
 output resourceGroupName string = resourceGroup().name
+output aadAppClientId string = aadApp.outputs.clientId
 

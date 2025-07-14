@@ -38,7 +38,9 @@
     "sonner": "^2.0.5",
     "tailwind-merge": "^3.3.0",
     "vaul": "^1.1.2",
-    "zod": "^3.25.51"
+    "zod": "^3.25.51",
+    "@azure/msal-browser": "^3.0.0",
+    "@azure/msal-react": "^2.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

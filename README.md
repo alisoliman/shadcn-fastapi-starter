@@ -47,6 +47,20 @@ npm run dev
 
 The frontend will be available at http://localhost:3000
 
+### Entra ID Login
+
+The frontend supports sign-in with Microsoft Entra ID using MSAL. Configure the
+following environment variables in `frontend/.env` (or `azd env` when
+deploying):
+
+```bash
+NEXT_PUBLIC_AZURE_CLIENT_ID=<app-registration-client-id>
+NEXT_PUBLIC_AZURE_TENANT_ID=<your-tenant-id>
+```
+
+When deploying with `azd up`, the infrastructure scripts create an Entra ID
+application and automatically set these values in the environment.
+
 ## Deployment
 
 Deploy to Azure Container Apps:
