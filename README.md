@@ -56,10 +56,11 @@ deploying):
 ```bash
 NEXT_PUBLIC_AZURE_CLIENT_ID=<app-registration-client-id>
 NEXT_PUBLIC_AZURE_TENANT_ID=<your-tenant-id>
+NEXT_PUBLIC_AZURE_REDIRECT_URI=<frontend-redirect-uri>
 ```
 
-When deploying with `azd up`, the infrastructure scripts create an Entra ID
-application and automatically set these values in the environment.
+When deploying with `azd up`, a post-provision script creates an Entra ID
+application and automatically sets these values in the environment.
 
 ## Deployment
 

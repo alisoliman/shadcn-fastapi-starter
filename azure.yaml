@@ -22,8 +22,11 @@ hooks:
     run: |
       echo "Setting container registry endpoint..."
       azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT $(azd env get-value containerRegistryLoginServer)
-      echo "Setting Entra ID client ID..."
-      azd env set NEXT_PUBLIC_AZURE_CLIENT_ID $(azd env get-value aadAppClientId)
-      echo "Setting Entra ID tenant ID..."
+      echo "Creating Entra ID application..."
+      FRONTEND_FQDN=$(azd env get-value frontendContainerAppFqdn)
+      APP_NAME="${AZURE_ENV_NAME}-app"
+      APP_ID=$(az ad app create --display-name "$APP_NAME" --web-redirect-uris "https://${FRONTEND_FQDN}" "http://localhost:3000" --query appId -o tsv)
+      azd env set NEXT_PUBLIC_AZURE_CLIENT_ID $APP_ID
       azd env set NEXT_PUBLIC_AZURE_TENANT_ID $(az account show --query tenantId -o tsv)
+      azd env set NEXT_PUBLIC_AZURE_REDIRECT_URI "https://${FRONTEND_FQDN}"
     continueOnError: false
