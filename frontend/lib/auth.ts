@@ -8,18 +8,24 @@ declare global {
 
 const runtime = typeof window !== "undefined" ? window.__env ?? {} : {};
 
+const clientId = runtime.NEXT_PUBLIC_AZURE_CLIENT_ID || "";
+
+export const isAuthEnabled = clientId.length > 0;
+
 const msalConfig = {
   auth: {
-    clientId: runtime.NEXT_PUBLIC_AZURE_CLIENT_ID || "",
+    clientId,
     authority: `https://login.microsoftonline.com/${runtime.NEXT_PUBLIC_AZURE_TENANT_ID || ""}`,
     redirectUri:
       runtime.NEXT_PUBLIC_AZURE_REDIRECT_URI ||
       (typeof window !== "undefined" ? window.location.origin : ""),
   },
   cache: {
-    cacheLocation: "sessionStorage",
+    cacheLocation: "sessionStorage" as const,
     storeAuthStateInCookie: false,
   },
 };
 
-export const msalInstance = new PublicClientApplication(msalConfig);
+export const msalInstance = isAuthEnabled
+  ? new PublicClientApplication(msalConfig)
+  : null;

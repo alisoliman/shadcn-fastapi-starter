@@ -69,21 +69,26 @@ make help     # Show all available targets
 
 Open this repo in GitHub Codespaces or VS Code with the Dev Containers extension — everything is pre-configured in `.devcontainer/`.
 
-### Entra ID Login
+### Entra ID Login (optional)
 
-The frontend supports sign-in with Microsoft Entra ID using MSAL. Configure the
-following environment variables in `frontend/.env` (or `azd env` when
-deploying):
+The frontend supports sign-in with Microsoft Entra ID using MSAL. Auth is **disabled by default** — the app works without any Azure AD configuration.
+
+To enable it locally, set these in `frontend/.env.local`:
 
 ```bash
 NEXT_PUBLIC_AZURE_CLIENT_ID=<app-registration-client-id>
 NEXT_PUBLIC_AZURE_TENANT_ID=<your-tenant-id>
-NEXT_PUBLIC_AZURE_REDIRECT_URI=<frontend-redirect-uri>
+NEXT_PUBLIC_AZURE_REDIRECT_URI=http://localhost:3000
 ```
 
-When deploying with `azd up`, a post-provision script creates an Entra ID
-application and automatically sets these values in the environment and updates
-the frontend container with them.
+To enable it when deploying with `azd`:
+
+```bash
+azd env set ENABLE_ENTRA_ID true
+azd up
+```
+
+The post-provision hook will create an Entra ID app registration and configure the frontend automatically.
 
 ## Deployment
 

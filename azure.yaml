@@ -22,16 +22,23 @@ hooks:
     run: |
       echo "Setting container registry endpoint..."
       azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT $(azd env get-value containerRegistryLoginServer)
-      echo "Creating Entra ID application..."
-      FRONTEND_FQDN=$(azd env get-value frontendContainerAppFqdn)
-      APP_NAME="${AZURE_ENV_NAME}-app"
-      APP_ID=$(az ad app create --display-name "$APP_NAME" --web-redirect-uris "https://${FRONTEND_FQDN}" "http://localhost:3000" --query appId -o tsv)
-      azd env set NEXT_PUBLIC_AZURE_CLIENT_ID $APP_ID
-      azd env set NEXT_PUBLIC_AZURE_TENANT_ID $(az account show --query tenantId -o tsv)
-      azd env set NEXT_PUBLIC_AZURE_REDIRECT_URI "https://${FRONTEND_FQDN}"
-      echo "Updating frontend container app settings..."
-      az containerapp update \
-        --name $(azd env get-value frontendContainerAppName) \
-        --resource-group $(azd env get-value resourceGroupName) \
-        --set-env-vars NEXT_PUBLIC_AZURE_CLIENT_ID=$APP_ID NEXT_PUBLIC_AZURE_TENANT_ID=$(az account show --query tenantId -o tsv) NEXT_PUBLIC_AZURE_REDIRECT_URI="https://${FRONTEND_FQDN}"
+
+      # Entra ID setup is optional — set ENABLE_ENTRA_ID=true in azd env to enable
+      ENABLE_ENTRA_ID=$(azd env get-value ENABLE_ENTRA_ID 2>/dev/null || echo "false")
+      if [ "$ENABLE_ENTRA_ID" = "true" ]; then
+        echo "Creating Entra ID application..."
+        FRONTEND_FQDN=$(azd env get-value frontendContainerAppFqdn)
+        APP_NAME="${AZURE_ENV_NAME}-app"
+        APP_ID=$(az ad app create --display-name "$APP_NAME" --web-redirect-uris "https://${FRONTEND_FQDN}" "http://localhost:3000" --query appId -o tsv)
+        azd env set NEXT_PUBLIC_AZURE_CLIENT_ID $APP_ID
+        azd env set NEXT_PUBLIC_AZURE_TENANT_ID $(az account show --query tenantId -o tsv)
+        azd env set NEXT_PUBLIC_AZURE_REDIRECT_URI "https://${FRONTEND_FQDN}"
+        echo "Updating frontend container app settings..."
+        az containerapp update \
+          --name $(azd env get-value frontendContainerAppName) \
+          --resource-group $(azd env get-value resourceGroupName) \
+          --set-env-vars NEXT_PUBLIC_AZURE_CLIENT_ID=$APP_ID NEXT_PUBLIC_AZURE_TENANT_ID=$(az account show --query tenantId -o tsv) NEXT_PUBLIC_AZURE_REDIRECT_URI="https://${FRONTEND_FQDN}"
+      else
+        echo "Skipping Entra ID setup (set ENABLE_ENTRA_ID=true to enable)"
+      fi
     continueOnError: false
