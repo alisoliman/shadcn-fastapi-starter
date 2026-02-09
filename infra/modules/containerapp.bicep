@@ -86,6 +86,25 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: string(containerPort)
             }
           ], environmentVariables)
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/healthz'
+                port: containerPort
+              }
+              periodSeconds: 30
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/healthz'
+                port: containerPort
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+            }
+          ]
         }
       ]
       scale: {

@@ -36,3 +36,8 @@ app.include_router(api_router, prefix=settings.API_PREFIX)
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Shadcn-FastAPI Starter API!"}
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
